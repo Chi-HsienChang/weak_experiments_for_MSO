@@ -1,6 +1,6 @@
 # weak_experiments_for_MSO
 
-## test
+## test v1
 
 g++ -std=c++20 main.cpp -o main
 
