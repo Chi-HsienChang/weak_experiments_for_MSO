@@ -12,7 +12,5 @@ split to .h .cpp
 make
 ./main 4 ctrap
 
-## 
-
 
 
