@@ -193,14 +193,15 @@ double calculate_fitness(const string& chromosome, const string& method) {
         
         double weak_fiteness = 0;
         if (chromosome == "111")
-            weak_fiteness = 4;
+            weak_fiteness = 3;
         else if (chromosome == "100")
-            weak_fiteness = 3;
-        else if (chromosome == "000")
-            weak_fiteness = 3;
+            weak_fiteness = 2;
+        else if (chromosome == "001")
+            weak_fiteness = 1;
         else
             weak_fiteness = 0;
         return weak_fiteness;
+
     } else if (method == "onemax_weak") {
         // cout << method << "!!" << endl;
         

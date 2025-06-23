@@ -34,6 +34,44 @@ int main(int argc, char* argv[]) {
     // Sample n distinct chromosomes randomly
     auto chromosomes = sample_chromosomes(all_chromosomes, n);
 
+
+    cout << "====================" << endl;
+    cout << "Weak counts" << endl;
+    cout << "====================" << endl;
+
+    for (int target_index = 0; target_index < L; target_index++) {
+        cout << "S -> " << target_index << endl;
+
+        std::vector<int> weak_count_results = weak(L, target_index, chromosomes);
+
+        int isWeak = false;
+
+        for (int i = 2; i < weak_count_results.size(); i++) {
+            if (weak_count_results[i] > 0) {
+                isWeak = true;
+                break;
+            }
+        }
+
+        if (!isWeak) {
+            cout << "--- No weak ---" << endl;
+        }else {
+            cout << "--- Weak ---" << endl;
+            for (int i = 2; i < weak_count_results.size(); i++) {
+                cout << "#order_" << i << ": " << weak_count_results[i] << endl;
+            }
+            cout << "-----------------" << endl;
+            cout << endl;
+        }
+
+    }
+    cout << endl;
+    cout << endl;
+
+    cout << "====================" << endl;
+    cout << "Epistasis counts" << endl;
+    cout << "====================" << endl;
+
     for (int target_index = 0; target_index < L; target_index++) {
         cout << "S -> " << target_index << endl;
 
@@ -47,6 +85,8 @@ int main(int argc, char* argv[]) {
     }
     cout << endl;
     cout << endl;
+
+
 
     // 排序根據 chom.second 的值由高到低
     sort(chromosomes.begin(), chromosomes.end(), [](const auto& a, const auto& b) {
