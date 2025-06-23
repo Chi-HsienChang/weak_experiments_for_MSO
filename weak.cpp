@@ -251,7 +251,6 @@ std::vector<int> weak(int L, int target_index, const vector<pair<string, double>
                 if (result)
                 {
                     epi_set[epi_size].push_back(combination);
-                    // break;
                 }
             
             
