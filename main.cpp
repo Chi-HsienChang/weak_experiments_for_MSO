@@ -32,9 +32,15 @@ int main(int argc, char* argv[]) {
         
         std::vector<int> weak_epi_count_results = count_weak(L, target_index, chromosomes, method);
         // cout << "order_0  order_1 order_2 ... order_(ell-1): "<< endl;
-        for (int count : weak_epi_count_results) {
-            cout << count << " ";
+        cout << "-----------------" << endl;
+        for (int i = 1; i < weak_epi_count_results.size(); i++) {
+            cout << "#order_" << i << ": " << weak_epi_count_results[i] << endl;
         }
+        cout << "-----------------" << endl;
+
+        // for (int count : weak_epi_count_results) {
+        //     cout << count << " ";
+        // }
         cout << endl;
     }
     cout << endl;

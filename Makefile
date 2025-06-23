@@ -1,10 +1,15 @@
-All: eg weak
+# 編譯器與選項變數
+CXX := g++
+CXXFLAGS := -std=c++20 -Wall -O2
 
-eg: egMain.cpp global.cpp mt19937ar.cpp myrand.cpp test.cpp global.h data.h fs.h gp.h statistics.h test.h tree.h
-	g++ -std=c++11 -o eg egMain.cpp global.cpp mt19937ar.cpp myrand.cpp test.cpp
+# 目標與來源檔
+TARGET := main
+SRC := main.cpp
 
-weak: weakMain.cpp global.cpp mt19937ar.cpp myrand.cpp test.cpp global.h data.h fs.h gp.h statistics.h test.h tree.h
-	g++ -std=c++11 -o weak weakMain.cpp global.cpp mt19937ar.cpp myrand.cpp test.cpp
+# 編譯目標
+$(TARGET): $(SRC)
+	$(CXX) $(CXXFLAGS) $(SRC) -o $(TARGET)
 
+# 清除目標
 clean:
-	rm -f eg weak
+	rm -f $(TARGET)
