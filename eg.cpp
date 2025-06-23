@@ -6,30 +6,19 @@
 #include <algorithm>
 #include <set>
 #include <random>
+#include "chromosome.h"   // 這裡面有 generateCombinations 和 generateBinarySequences 的宣告
+#include "problem.h"      // （如有需要，也加上）
+#include "eg.h"           // epistasis、check_constraint… 等宣告
+
+
 // main.cpp
-#include "problem.cpp"  // 技術上合法
+// #include "problem.cpp"  // 技術上合法
+// #include "chromosome.cpp"  // 技術上合法
 
 using namespace std;
 #define DEBUG 1 // Uncomment this line if DEBUG is meant to be a macro
 
 // Generate all possible chromosomes based on the problem length L
-vector<pair<string, double>> generate_chromosomes(int L, const string& method) {
-    vector<pair<string, double>> chromosomes;
-    int num_combinations = pow(2, L);
-
-    for (int i = 0; i < num_combinations; ++i) {
-        // Generate chromosome using bitset and convert it to a string
-        string chromosome = bitset<32>(i).to_string().substr(32 - L);
-        
-        // Calculate fitness for the chromosome
-        double fitness = calculate_fitness(chromosome, method);
-        
-        // Store the chromosome and its fitness as a pair
-        chromosomes.push_back({chromosome, fitness});
-    }
-
-    return chromosomes;
-}
 
 bool isSubset(const std::vector<int>& subset, const std::vector<int>& set) {
     for (const auto& elem : subset) {
@@ -42,54 +31,8 @@ bool isSubset(const std::vector<int>& subset, const std::vector<int>& set) {
     return true;
 }
 
-std::vector<std::vector<int>> generateBinarySequences(int n) {
-    int totalSequences = 1 << n;  // 2^n
-    std::vector<std::vector<int>> allSequences;
 
-    for (int i = 0; i < totalSequences; ++i) {
-        std::vector<int> sequence(n);
-
-        for (int j = 0; j < n; ++j) {
-            // 檢查第j位是否為1
-            sequence[n - 1 - j] = (i >> j) & 1;
-        }
-
-        // 將序列添加到所有序列的vector中
-        allSequences.push_back(sequence);
-    }
-
-    return allSequences;
-}
-
-std::vector<std::vector<int>> generateCombinations(int n, int k, int target_index) {
-    std::vector<int> elements;
-
-    // 建立不包含 target_index 的元素清單
-    for (int i = 0; i <= n; ++i) { // n 表示實際範圍
-        if (i != target_index) {
-            elements.push_back(i);
-        }
-    }
-
-    std::vector<int> bitmask(k, 1);            // 創建 k 個 1
-    bitmask.resize(elements.size(), 0);       // 後面填充其餘為 0
-
-    std::vector<std::vector<int>> combinations;
-
-    do {
-        std::vector<int> currentCombination;
-        for (size_t i = 0; i < elements.size(); ++i) {
-            if (bitmask[i]) {
-                currentCombination.push_back(elements[i]);
-            }
-        }
-        combinations.push_back(currentCombination);
-    } while (std::prev_permutation(bitmask.begin(), bitmask.end())); // 生成下一個排列
-
-    return combinations;
-}
-
-std::pair<std::set<char>, std::vector<std::string>> check_constraint(int target_index, auto combination, auto enumeration, auto chromosomes){
+std::pair<std::set<char>, std::vector<std::string>> check_constraint(int target_index, const vector<int>& combination, const vector<int>& enumeration, const vector<pair<string, double>>& chromosomes){
     std::set<char> values_at_v;
     std::vector<std::string> highest_fitness_chromosomes;
 
@@ -204,7 +147,7 @@ std::pair<std::set<char>, std::vector<std::string>> check_constraint(int target_
 }
 
 
-bool check_constrained_optima(int target_index, auto combination, auto enumeration_original, auto combination_wo, auto enumeration_wo, auto chromosomes){
+bool check_constrained_optima(int target_index, const vector<int>& combination, const vector<int>& enumeration_original, const vector<int>& combination_wo, const vector<int>& enumeration_wo, const vector<pair<string, double>>& chromosomes){
 
         // if (DEBUG)
         // {
@@ -323,9 +266,7 @@ bool check_constrained_optima(int target_index, auto combination, auto enumerati
 }
 
 
-
-
-int check_weak(int target_index, auto combination, auto enumerations, auto chromosomes) {
+int check_epistasis(int target_index, const vector<int>& combination, const vector<vector<int>>& enumerations, const vector<pair<string, double>>& chromosomes) {
 
     // cout << "==================" << endl;
     // cout << "combination: ";
@@ -519,76 +460,8 @@ int check_weak(int target_index, auto combination, auto enumerations, auto chrom
     return 0;
 }
 
-std::vector<int> weak(int L, int target_index, auto chromosomes, const string& method)
-{
-    std::vector<std::vector<std::vector<int>>> weak_epi_set(L);
-    std::vector<int> weak_epi_count(L, 0); 
-    
 
-    for (int epi_size = 1; epi_size < L; epi_size++)
-    {  
-        auto combinations = generateCombinations(L-1, epi_size, target_index); // combinations = { [1, 2], [1, 3], [2, 3] }
-
-        for (auto& combination : combinations) // combination = [1, 2]
-        { 
-            // cout << "combination!!!!! ";
-            // for (const auto& elem : combination) {
-            //     cout << elem << " ";
-            // }
-            // cout << endl;
-
-            bool not_find_smaller_epi;
-
-            if (epi_size == 1)
-            {
-                not_find_smaller_epi = true;           
-            }else{
-                not_find_smaller_epi = true;  
-                int smaller_epi_size = epi_size;
-                bool is_subset;
-                while(not_find_smaller_epi && smaller_epi_size>=1)
-                {   
-                    // cout << "previous:" << endl;
-                    for (auto& previous : weak_epi_set[smaller_epi_size-1]) 
-                    {
-                        // cout << "previous" << endl;
-
-                        // for (const auto& elem : previous) {
-                        //     cout << elem << " ";
-                        // }
-                        // cout<<endl;
-
-                        is_subset = isSubset(previous, combination);
-                        not_find_smaller_epi = !is_subset;
-                        if(is_subset) break;
-                    }
-                    smaller_epi_size--;
-                }
-            }
-
-            if(not_find_smaller_epi)
-            {
-                auto enumerations = generateBinarySequences(epi_size); // enumerations = { [0, 0], [0, 1], [1, 0], [1, 1] }    
-
-                int result = check_weak(target_index, combination, enumerations, chromosomes);
-                weak_epi_count[epi_size] += result;
-                if (result)
-                {
-                    // weak_epi_set[epi_size].push_back(combination);
-                    // break;
-                }
-            
-            
-            }
-        }
-    }
-
-    return weak_epi_count;
-}
-
-
-
-std::vector<int> epistasis(int L, int target_index, auto chromosomes)
+std::vector<int> epistasis(int L, int target_index, const vector<pair<string, double>>& chromosomes)
 {
     std::vector<std::vector<std::vector<int>>> epi_set(L);
     std::vector<int> epi_count(L, 0); 
@@ -625,7 +498,7 @@ std::vector<int> epistasis(int L, int target_index, auto chromosomes)
             {
                 auto enumerations = generateBinarySequences(epi_size); // enumerations = { [0, 0], [0, 1], [1, 0], [1, 1] }    
 
-                int result = check_weak(target_index, combination, enumerations, chromosomes);
+                int result = check_epistasis(target_index, combination, enumerations, chromosomes);
                 epi_count[epi_size] += result;
                 if (result)
                 {
@@ -642,7 +515,6 @@ std::vector<int> epistasis(int L, int target_index, auto chromosomes)
 }
 
 
-
 // Print the matrix
 void print_matrix(const vector<vector<string>>& matrix) {
     for (const auto& row : matrix) {
@@ -653,20 +525,3 @@ void print_matrix(const vector<vector<string>>& matrix) {
     }
 }
 
-// Sample n chromosomes randomly from all_chromosomes
-vector<pair<string, double>> sample_chromosomes(const vector<pair<string, double>>& all_chromosomes, int n) {
-    // Create a mutable copy of all_chromosomes
-    vector<pair<string, double>> sampled_chromosomes = all_chromosomes;
-
-    // Shuffle the vector
-    random_device rd;
-    mt19937 gen(rd());
-    shuffle(sampled_chromosomes.begin(), sampled_chromosomes.end(), gen);
-
-    // Resize to keep only n elements
-    if (n < sampled_chromosomes.size()) {
-        sampled_chromosomes.resize(n);
-    }
-
-    return sampled_chromosomes;
-}

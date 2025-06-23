@@ -6,6 +6,9 @@
 #include <algorithm>
 #include <set>
 #include <random>
+#include "eg.h"  // 技術上合法
+#include "chromosome.h"  // 技術上合法
+#include "problem.h"  // 技術上合法
 using namespace std;
 #define DEBUG 1 // Uncomment this line if DEBUG is meant to be a macro
 
@@ -117,7 +120,6 @@ double calculate_fitness(const string& chromosome, const string& method) {
 
         return total_fitness;
     } else if (method == "cyctrap") {
-        // cout << method << "!!"<< endl;
         int segment_length = 4;
         int overlap = 1;
         double total_fitness = 0.0;

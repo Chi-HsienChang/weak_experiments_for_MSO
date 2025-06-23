@@ -6,7 +6,10 @@
 #include <algorithm>
 #include <set>
 #include <random>
-#include "weak.cpp"  // 技術上合法
+#include "eg.h"  // 技術上合法
+#include "chromosome.h"  // 技術上合法
+#include "problem.h"  // 技術上合法
+
 using namespace std;
 #define DEBUG 1 // Uncomment this line if DEBUG is meant to be a macro
 
@@ -21,26 +24,24 @@ int main(int argc, char* argv[]) {
 
     int n = pow(2, L);
 
-    // Generate all possible chromosomes
+    // Generate all possible chromosomes:
+    // Generates all 2^L possible binary strings of length L, each unique.
+    // Each chromosome is paired with its fitness score.
+    // So all_chromosomes contains only distinct chromosomes.
     auto all_chromosomes = generate_chromosomes(L, method);
 
-    // Sample n chromosomes randomly
+    // Sample n distinct chromosomes randomly
     auto chromosomes = sample_chromosomes(all_chromosomes, n);
 
     for (int target_index = 0; target_index < L; target_index++) {
         cout << "S -> " << target_index << endl;
-        
-        std::vector<int> weak_epi_count_results = count_weak(L, target_index, chromosomes, method);
-        // cout << "order_0  order_1 order_2 ... order_(ell-1): "<< endl;
-        cout << "-----------------" << endl;
+
+        std::vector<int> weak_epi_count_results = epistasis(L, target_index, chromosomes);
+        cout << "--- Epistasis ---" << endl;
         for (int i = 1; i < weak_epi_count_results.size(); i++) {
             cout << "#order_" << i << ": " << weak_epi_count_results[i] << endl;
         }
         cout << "-----------------" << endl;
-
-        // for (int count : weak_epi_count_results) {
-        //     cout << count << " ";
-        // }
         cout << endl;
     }
     cout << endl;

@@ -1,15 +1,11 @@
-# 編譯器與選項變數
-CXX := g++
-CXXFLAGS := -std=c++20 -Wall -O2
+SRCS = main.cpp eg.cpp chromosome.cpp problem.cpp
+OBJS = $(SRCS:.cpp=.o)
 
-# 目標與來源檔
-TARGET := main
-SRC := main.cpp
+main: $(OBJS)
+	g++ -std=c++20 $(OBJS) -o main
 
-# 編譯目標
-$(TARGET): $(SRC)
-	$(CXX) $(CXXFLAGS) $(SRC) -o $(TARGET)
+%.o: %.cpp
+	g++ -std=c++20 -c $< -o $@
 
-# 清除目標
 clean:
-	rm -f $(TARGET)
+	rm -f $(OBJS) main
