@@ -7,3 +7,9 @@ g++ -std=c++20 main.cpp -o main
 valgrind --leak-check=full ./main 3 onemax
 ./main 3 onemax
 
+## 6/23
+make
+./main 4 ctrap
+
+
+
