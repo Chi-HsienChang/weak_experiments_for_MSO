@@ -6,9 +6,11 @@
 #include <algorithm>
 #include <set>
 #include <random>
-#include "eg.h"  // 技術上合法
-#include "chromosome.h"  // 技術上合法
-#include "problem.h"  // 技術上合法
+
+#include "chromosome.h" 
+#include "problem.h" 
+#include "eg.h"  
+#include "weak.h" 
 
 using namespace std;
 #define DEBUG 1 // Uncomment this line if DEBUG is meant to be a macro
@@ -24,7 +26,6 @@ int main(int argc, char* argv[]) {
 
     int n = pow(2, L);
 
-    // Generate all possible chromosomes:
     // Generates all 2^L possible binary strings of length L, each unique.
     // Each chromosome is paired with its fitness score.
     // So all_chromosomes contains only distinct chromosomes.
@@ -36,10 +37,10 @@ int main(int argc, char* argv[]) {
     for (int target_index = 0; target_index < L; target_index++) {
         cout << "S -> " << target_index << endl;
 
-        std::vector<int> weak_epi_count_results = epistasis(L, target_index, chromosomes);
+        std::vector<int> epi_count_results = epistasis(L, target_index, chromosomes);
         cout << "--- Epistasis ---" << endl;
-        for (int i = 1; i < weak_epi_count_results.size(); i++) {
-            cout << "#order_" << i << ": " << weak_epi_count_results[i] << endl;
+        for (int i = 1; i < epi_count_results.size(); i++) {
+            cout << "#order_" << i << ": " << epi_count_results[i] << endl;
         }
         cout << "-----------------" << endl;
         cout << endl;
