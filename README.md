@@ -7,9 +7,12 @@ g++ -std=c++20 main.cpp -o main
 valgrind --leak-check=full ./main 3 onemax
 ./main 3 onemax
 
-## 6/23
+## 6/23 
+split to .h .cpp
 make
 ./main 4 ctrap
+
+## 
 
 
 
