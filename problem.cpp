@@ -300,6 +300,17 @@ double calculate_fitness(const string& chromosome, const string& method) {
                             make_pair(i+1,false) });
     }
 
+        // 2) 輸出成 DIMACS CNF
+    //    p cnf <變數數量> <子句數量>
+    cout << "p cnf " << n << " " << clauses.size() << "\n";
+    for (auto& cl : clauses) {
+        for (auto& lit : cl) {
+            int var = lit.first + 1;                    // DIMACS 變數從 1 開始
+            cout << (lit.second ?  var : -var) << " ";  // 正 lit.second=true，負 lit.second=false
+        }
+        cout << "0\n";  // 每行子句以 0 結尾
+    }
+
     // 評估滿足子句數
     int sat = 0;
     for (auto& cl : clauses) {
@@ -315,7 +326,56 @@ double calculate_fitness(const string& chromosome, const string& method) {
     }
 
     return static_cast<double>(sat);
-    }else if (method == "max3sat_random") {
+    }else if (method == "max3sat_cnf") {
+    int n = chromosome.size();
+    if (n < 2) {
+        cerr << "Error: max3sat_chainxor requires chromosome size >= 2\n";
+        exit(1);
+    }
+
+    // 1) 產生所有 clauses
+    vector<array<pair<int,bool>,3>> clauses;
+    clauses.push_back({ make_pair(0,true), make_pair(0,true), make_pair(0,true) });
+    for (int i = 0; i < n - 1; ++i) {
+        clauses.push_back({ make_pair(i,  true),
+                            make_pair(i+1,true),
+                            make_pair(i+1,true) });
+        clauses.push_back({ make_pair(i,  false),
+                            make_pair(i+1,false),
+                            make_pair(i+1,false) });
+    }
+
+    // 2) 印出 human‐readable 的 clauses
+    cout << "===  clauses ===\n";
+    for (auto& cl : clauses) {
+        cout << "(";
+        for (int i = 0; i < 3; ++i) {
+            int idx = cl[i].first;
+            bool pos = cl[i].second;
+            if (!pos) cout << "¬";
+            cout << "x" << idx;
+            if (i < 2) cout << " ∨ ";
+        }
+        cout << ")\n";
+    }
+    // 如果只想印出 clauses 就停在這裡：
+    // exit(0);
+
+    // —— 以下原本的 fitness 計算保持不變 —— 
+    int sat = 0;
+    for (auto& cl : clauses) {
+        bool clause_sat = false;
+        for (auto& lit : cl) {
+            bool val = (chromosome[lit.first] == '1');
+            if ((lit.second && val) || (!lit.second && !val)) {
+                clause_sat = true;
+                break;
+            }
+        }
+        if (clause_sat) ++sat;
+    }
+    return static_cast<double>(sat);
+}else if (method == "max3sat_v2") {
 
         int n = chromosome.length();
 
@@ -386,7 +446,529 @@ double calculate_fitness(const string& chromosome, const string& method) {
             if (clause_sat) ++sat;
         }
         return static_cast<double>(sat);  
+
+    } else if (method == "max3sat_v3") {
+        int n = chromosome.length();
+
+        // 只在第一次呼叫時計算並儲存子句集合
+        static bool initialized = false;
+        static vector<array<pair<int,bool>,3>> clauses;
+        if (!initialized) {
+            initialized = true;
+
+            // 隨機數
+            random_device rd;
+            mt19937 gen(rd());
+            uniform_int_distribution<> coin(0,1);
+            uniform_int_distribution<> var_dist(0, n - 1);
+
+            // 1) 隨機產生唯一最佳解
+            vector<bool> target(n);
+            cout << "=== max3SAT_v2 target (length=" << n << ") ===\n";
+            cout << "target = ";
+            for (int i = 0; i < n; ++i) {
+                target[i] = coin(gen);
+                cout << (target[i] ? '1' : '0');
+            }
+            cout << "\n\n";
+
+            // 印出並加入 unit‐clauses
+            cout << "--- Unit clauses (" << n << ") ---\n";
+            for (int i = 0; i < n; ++i) {
+                bool pos = target[i];
+                clauses.push_back({
+                    make_pair(i, pos),
+                    make_pair(i, pos),
+                    make_pair(i, pos)
+                });
+                cout << "Clause " << i << ": "
+                    << (pos ? "" : "¬") << "x" << i
+                    << " ∨ " << (pos ? "" : "¬") << "x" << i
+                    << " ∨ " << (pos ? "" : "¬") << "x" << i
+                    << "\n";
+            }
+            cout << "\n";
+
+            // 2) 加入 m_random 條隨機 3-literal clause（此處取 4n 條，可自行調整）
+            int m_random = 4 * n;
+            cout << "--- Random clauses (" << m_random << ") ---\n";
+            for (int k = 0; k < m_random; ++k) {
+                int a, b, c;
+                do {
+                    a = var_dist(gen);
+                    b = var_dist(gen);
+                    c = var_dist(gen);
+                } while (a == b || a == c || b == c);
+
+                // 保證至少一個 literal 在目標解下為 true
+                int guarantee = coin(gen) % 3;
+                array<pair<int,bool>,3> cl;
+                int idxs[3] = {a, b, c};
+                for (int t = 0; t < 3; ++t) {
+                    int v = idxs[t];
+                    bool sign;
+                    if (t == guarantee) {
+                        sign = target[v];
+                    } else {
+                        sign = (coin(gen) == 1) ? target[v] : !target[v];
+                    }
+                    cl[t] = make_pair(v, sign);
+                }
+                clauses.push_back(cl);
+
+                // 印出這條 clause
+                cout << "Clause " << n + k << ": ";
+                for (int t = 0; t < 3; ++t) {
+                    auto [idx, pos] = cl[t];
+                    if (!pos) cout << "¬";
+                    cout << "x" << idx;
+                    if (t < 2) cout << " ∨ ";
+                }
+                cout << "\n";
+            }
+            cout << "========================================\n\n";
+        }
+
+        // 3) 計算滿足子句數
+        int sat = 0;
+        for (auto& cl : clauses) {
+            bool clause_sat = false;
+            for (auto& lit : cl) {
+                bool val = (chromosome[lit.first] == '1');
+                if ((lit.second && val) || (!lit.second && !val)) {
+                    clause_sat = true;
+                    break;
+                }
+            }
+            if (clause_sat) ++sat;
+        }
+        return static_cast<double>(sat);
+    }else if (method == "max3sat_random") {
+        int n = chromosome.length();
+        int m = 10 * n;  // 產生子句數，可依需求調整
+
+        // 靜態變數：只在第一次呼叫時填充
+        static bool generated = false;
+        static vector<array<pair<int,bool>,3>> clauses;
+        if (!generated) {
+            generated = true;
+            clauses.reserve(m);
+
+            // 隨機數
+            random_device rd;
+            mt19937 gen(rd());
+            uniform_int_distribution<> var_dist(0, n - 1);
+            uniform_int_distribution<> coin(0, 1);
+
+            cout << "=== Generated max3SAT clauses (" << m << ") ===\n";
+            for (int k = 0; k < m; ++k) {
+                array<pair<int,bool>,3> cl;
+                for (int t = 0; t < 3; ++t) {
+                    int v = var_dist(gen);
+                    bool sign = (coin(gen) == 1);
+                    cl[t] = make_pair(v, sign);
+                }
+                clauses.push_back(cl);
+
+                // 印出這條 clause
+                cout << "Clause " << k << ": ";
+                for (int t = 0; t < 3; ++t) {
+                    auto [idx, pos] = cl[t];
+                    if (!pos) cout << "¬";
+                    cout << "x" << idx;
+                    if (t < 2) cout << " ∨ ";
+                }
+                cout << "\n";
+            }
+            cout << "========================================\n";
+        }
+
+        // 評估 fitness = 滿足的子句數
+        int sat = 0;
+        for (auto& cl : clauses) {
+            bool clause_sat = false;
+            for (auto& lit : cl) {
+                bool val = (chromosome[lit.first] == '1');
+                if ((lit.second && val) || (!lit.second && !val)) {
+                    clause_sat = true;
+                    break;
+                }
+            }
+            if (clause_sat) ++sat;
+        }
+        return static_cast<double>(sat);
+    }else if (method == "max3sat_random2") {
+        int n = chromosome.length();
+        int m_random = 100 * n;  // 額外產生的隨機 clause 數
+
+        // 靜態變數：只在第一次呼叫時初始化 target & clauses
+        static bool generated = false;
+        static vector<bool> target;
+        static vector<array<pair<int,bool>,3>> clauses;
+
+        if (!generated) {
+            generated = true;
+            target.assign(n, false);
+            clauses.clear();
+            clauses.reserve(n + m_random);
+
+            // 1) 隨機產生唯一最佳解
+            random_device rd;
+            mt19937 gen(rd());
+            uniform_int_distribution<> coin(0, 1);
+            cout << "=== max3SAT unique-optimum target (length=" << n << ") ===\n";
+            cout << "target = ";
+            for (int i = 0; i < n; ++i) {
+                target[i] = (coin(gen) == 1);
+                cout << (target[i] ? '1' : '0');
+            }
+            cout << "\n";
+
+            // 2) 用 unit-clause 鎖定 target
+            cout << "=== Unit clauses (" << n << ") ===\n";
+            for (int i = 0; i < n; ++i) {
+                bool pos = target[i];
+                clauses.push_back({
+                    make_pair(i, pos),
+                    make_pair(i, pos),
+                    make_pair(i, pos)
+                });
+                cout << "Unit " << i << ": "
+                    << (pos ? "" : "¬") << "x" << i << "\n";
+            }
+
+            // 3) 加入 m_random 條隨機 3-literal clause，但保證在 target 下成立
+            uniform_int_distribution<> var_dist(0, n - 1);
+            cout << "=== Random clauses (" << m_random << ") ===\n";
+            for (int k = 0; k < m_random; ++k) {
+                // 選三個不同變數
+                int a, b, c;
+                do {
+                    a = var_dist(gen);
+                    b = var_dist(gen);
+                    c = var_dist(gen);
+                } while (a == b || a == c || b == c);
+                int idxs[3] = {a, b, c};
+
+                // 確保至少一個 literal 與 target 相同
+                int guarantee = coin(gen) % 3;
+                array<pair<int,bool>,3> cl;
+                for (int t = 0; t < 3; ++t) {
+                    int v = idxs[t];
+                    bool sign = (t == guarantee)
+                                    ? target[v]
+                                    : (coin(gen) ? target[v] : !target[v]);
+                    cl[t] = make_pair(v, sign);
+                }
+                clauses.push_back(cl);
+
+                // 印出 Clause k
+                cout << "Clause " << k << ": ";
+                for (int t = 0; t < 3; ++t) {
+                    auto [idx, pos] = cl[t];
+                    if (!pos) cout << "¬";
+                    cout << "x" << idx;
+                    if (t < 2) cout << " ∨ ";
+                }
+                cout << "\n";
+            }
+            cout << "========================================\n";
+        }
+
+        // 4) 計算 fitness = 滿足的子句數
+        int sat = 0;
+        for (auto& cl : clauses) {
+            bool clause_sat = false;
+            for (auto& lit : cl) {
+                bool val = (chromosome[lit.first] == '1');
+                if ((lit.second && val) || (!lit.second && !val)) {
+                    clause_sat = true;
+                    break;
+                }
+            }
+            if (clause_sat) ++sat;
+        }
+        return static_cast<double>(sat);
+    } else if (method == "max3sat_random3") {
+        int n = chromosome.length();
+        int m_random = 4 * n;  // 隨機 clause 數
+
+        // 靜態：第一次呼叫時初始化 target & clauses
+        static bool generated = false;
+        static vector<bool> target;
+        static vector<array<pair<int,bool>,3>> clauses;
+
+        if (!generated) {
+            generated = true;
+            target.assign(n, false);
+            clauses.clear();
+
+            // 隨機目標解
+            random_device rd;
+            mt19937 gen(rd());
+            uniform_int_distribution<> coin(0,1);
+            uniform_int_distribution<> var_dist(0,n-1);
+
+            cout << "=== Unique optimum target ===\n target = ";
+            for (int i = 0; i < n; ++i) {
+                target[i] = coin(gen);
+                cout << (target[i]?'1':'0');
+            }
+            cout << "\n";
+
+            // 1) pairwise clauses for every (i,j), i<j
+            cout << "=== Pairwise lock-in clauses ===\n";
+            for (int i = 0; i < n; ++i) {
+                for (int j = i+1; j < n; ++j) {
+                    // clause: (l_i ∨ l_j ∨ l_i)
+                    bool l_i = target[i], l_j = target[j];
+                    clauses.push_back({
+                        make_pair(i, l_i),
+                        make_pair(j, l_j),
+                        make_pair(i, l_i)
+                    });
+                    // 印出
+                    cout << "("
+                        << (l_i?"":"¬") << "x" << i << " ∨ "
+                        << (l_j?"":"¬") << "x" << j << " ∨ "
+                        << (l_i?"":"¬") << "x" << i << ")\n";
+                }
+            }
+
+            // 2) 再加入 m_random 條隨機但目標解可滿足的 3‐literal clause
+            cout << "=== Random clauses ===\n";
+            for (int k = 0; k < m_random; ++k) {
+                int a,b,c;
+                do {
+                    a = var_dist(gen);
+                    b = var_dist(gen);
+                    c = var_dist(gen);
+                } while (a==b||a==c||b==c);
+                int idxs[3] = {a,b,c};
+                int guarantee = coin(gen)%3;
+
+                array<pair<int,bool>,3> cl;
+                for (int t = 0; t < 3; ++t) {
+                    int v = idxs[t];
+                    bool sign = (t==guarantee)
+                                    ? target[v]
+                                    : (coin(gen)? target[v] : !target[v]);
+                    cl[t] = make_pair(v, sign);
+                }
+                clauses.push_back(cl);
+
+                // 印出
+                cout << "(";
+                for (int t=0;t<3;++t) {
+                    auto [idx,pos] = cl[t];
+                    cout << (pos?"":"¬") << "x" << idx
+                        << (t<2?" ∨ ":"");
+                }
+                cout << ")\n";
+            }
+            cout << "================================\n";
+        }
+
+        // fitness = 滿足的 clause 數
+        int sat=0;
+        for (auto& cl: clauses) {
+            bool ok=false;
+            for (auto& lit: cl) {
+                bool val = chromosome[lit.first]=='1';
+                if ((lit.second&&val) || (!lit.second&&!val)) {
+                    ok=true; break;
+                }
+            }
+            if (ok) ++sat;
+        }
+        return (double)sat;
+    } else if (method == "max3sat_random4") {
+        int n = chromosome.length();
+        int m_random = 10 * n;  // 初始隨機子句數，可依需求調整
+
+        static bool generated = false;
+        static vector<bool> target;
+        static vector<array<pair<int,bool>,3>> clauses;
+
+        if (!generated) {
+            generated = true;
+            target.assign(n, false);
+            clauses.clear();
+            clauses.reserve(m_random + (1<<n));
+
+            // 隨機數生成器
+            random_device rd;
+            mt19937 gen(rd());
+            uniform_int_distribution<> coin(0,1);
+            uniform_int_distribution<> var_dist(0,n-1);
+
+            // 1) 隨機產生唯一目標解
+            cout << "=== Unique-optimum target ===\n target = ";
+            for (int i = 0; i < n; ++i) {
+                target[i] = coin(gen);
+                cout << (target[i] ? '1' : '0');
+            }
+            cout << "\n";
+
+            // 2) 初始 m_random 條隨機子句（在 target 下都成立）
+            cout << "=== Initial random clauses (" << m_random << ") ===\n";
+            for (int k = 0; k < m_random; ++k) {
+                array<pair<int,bool>,3> cl;
+                for (int t = 0; t < 3; ++t) {
+                    int v = var_dist(gen);
+                    // 確保 literal 在 target 下成立
+                    bool sign = coin(gen) ? target[v] : !target[v];
+                    cl[t] = make_pair(v, sign);
+                }
+                clauses.push_back(cl);
+
+                // 印出 clause
+                cout << "Clause " << k << ": ";
+                for (int t = 0; t < 3; ++t) {
+                    auto [idx,pos] = cl[t];
+                    if (!pos) cout << "¬";
+                    cout << "x" << idx << (t<2?" ∨ ":"");
+                }
+                cout << "\n";
+            }
+
+            // 3) 阻擋所有非目標解
+            cout << "=== Blocking non-target assignments ===\n";
+            int clause_id = m_random;
+            int total_assignments = 1 << n;
+            // 檢查每一個可能的 assignment
+            for (int mask = 0; mask < total_assignments; ++mask) {
+                // 跳過 target
+                bool is_target = true;
+                for (int i = 0; i < n; ++i) {
+                    if (target[i] != bool((mask>>i)&1)) {
+                        is_target = false;
+                        break;
+                    }
+                }
+                if (is_target) continue;
+
+                // 檢查此 assignment 是否滿足現有所有 clauses
+                bool still_sat = true;
+                for (auto& cl : clauses) {
+                    bool sat_clause = false;
+                    for (auto& lit : cl) {
+                        bool val = bool((mask >> lit.first) & 1);
+                        if ((lit.second && val) || (!lit.second && !val)) {
+                            sat_clause = true;
+                            break;
+                        }
+                    }
+                    if (!sat_clause) {
+                        still_sat = false;
+                        break;
+                    }
+                }
+                // 若仍然滿足，則加入一條 blocking clause
+                if (still_sat) {
+                    // 找出與 target 不同的位置 D
+                    vector<int> D;
+                    for (int i = 0; i < n; ++i) {
+                        bool bval = bool((mask >> i) & 1);
+                        if (bval != target[i]) D.push_back(i);
+                    }
+                    // 從 D 隨機選 3 個（或全部，如果 <3）
+                    array<int,3> pick = {-1,-1,-1};
+                    int dsize = D.size();
+                    shuffle(D.begin(), D.end(), gen);
+                    for (int t = 0; t < 3 && t < dsize; ++t) {
+                        pick[t] = D[t];
+                    }
+
+                    array<pair<int,bool>,3> block_cl;
+                    for (int t = 0; t < 3; ++t) {
+                        int v = (pick[t] < 0 ? D[0] : pick[t]);
+                        // 用 target[v] 作為 literal 方向
+                        block_cl[t] = make_pair(v, target[v]);
+                    }
+                    clauses.push_back(block_cl);
+
+                    // 印出 blocking clause
+                    cout << "Clause " << clause_id++ << ": ";
+                    for (int t = 0; t < 3; ++t) {
+                        auto [idx,pos] = block_cl[t];
+                        if (!pos) cout << "¬";
+                        cout << "x" << idx << (t<2?" ∨ ":"");
+                    }
+                    cout << "\n";
+                }
+            }
+            cout << "========================================\n";
+        }
+
+        // 4) 計算 fitness = 滿足的 clause 數
+        int sat = 0;
+        for (auto& cl : clauses) {
+            bool clause_sat = false;
+            for (auto& lit : cl) {
+                bool val = (chromosome[lit.first] == '1');
+                if ((lit.second && val) || (!lit.second && !val)) {
+                    clause_sat = true;
+                    break;
+                }
+            }
+            if (clause_sat) ++sat;
+        }
+        return static_cast<double>(sat);
+    }else if (method == "max3sat_random5") {
+        int n = chromosome.length();
+
+        // 靜態：只第一次呼叫時計算並印出 clauses
+        static bool generated = false;
+        static vector<array<pair<int,bool>,3>> clauses;
+        if (!generated) {
+            generated = true;
+            clauses.clear();
+
+            random_device rd;
+            mt19937 gen(rd());
+            uniform_int_distribution<> coin(0,1);
+
+            cout << "=== Generated sliding-window clauses for n=" << n << " ===\n";
+            // 對所有 i=0..n-3 生成 (xi ∨ xi+1 ∨ xi+2)，加隨機 ¬
+            for (int i = 0; i <= n - 3; ++i) {
+                array<pair<int,bool>,3> cl;
+                cout << "Clause " << i << ": ";
+                for (int t = 0; t < 3; ++t) {
+                    int idx = i + t;
+                    bool positive = (coin(gen) == 1);
+                    cl[t] = make_pair(idx, positive);
+                    if (!positive) cout << "¬";
+                    cout << "x" << idx;
+                    if (t < 2) cout << " ∨ ";
+                }
+                cout << "\n";
+                clauses.push_back(cl);
+            }
+            cout << "========================================\n";
+        }
+
+        // 計算 fitness = 滿足的子句數
+        int sat = 0;
+        for (auto& cl : clauses) {
+            bool clause_sat = false;
+            for (auto& lit : cl) {
+                bool val = (chromosome[lit.first] == '1');
+                if ((lit.second && val) || (!lit.second && !val)) {
+                    clause_sat = true;
+                    break;
+                }
+            }
+            if (clause_sat) ++sat;
+        }
+        return static_cast<double>(sat);
     }
+
+
+
+
+
+
 
     std::cerr << "Error: the problem does not exist!" << std::endl;
     exit(1);

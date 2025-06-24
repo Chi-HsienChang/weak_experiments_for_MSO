@@ -7,10 +7,10 @@
 #include <set>
 #include <random>
 
-#include "chromosome.h" 
-#include "problem.h" 
-#include "eg.h"  
-#include "weak.h" 
+#include "chromosome.h"
+#include "problem.h"
+#include "eg.h"
+#include "weak.h"
 
 using namespace std;
 #define DEBUG 1 // Uncomment this line if DEBUG is meant to be a macro
@@ -23,90 +23,81 @@ int main(int argc, char* argv[]) {
 
     int L = stoi(argv[1]);
     string method = argv[2];
-
     int n = pow(2, L);
 
-    // Generates all 2^L possible binary strings of length L, each unique.
-    // Each chromosome is paired with its fitness score.
-    // So all_chromosomes contains only distinct chromosomes.
-    auto all_chromosomes = generate_chromosomes(L, method);
+    int run_count = 0;
+    bool found_no_weak = false;
+    vector<pair<string,double>> chromosomes;
 
-    // Sample n distinct chromosomes randomly
-    auto chromosomes = sample_chromosomes(all_chromosomes, n);
+    // 重複執行，直到找到一次「No weak」
+    while (!found_no_weak) {
+        ++run_count;
+        cout << "===== Run #" << run_count << " =====" << endl;
 
+        // 1. 生成所有 2^L 染色體並抽樣 n 條
+        auto all_chromosomes = generate_chromosomes(L, method);
+        chromosomes = sample_chromosomes(all_chromosomes, n);
 
-    cout << "====================" << endl;
-    cout << "Weak counts" << endl;
-    cout << "====================" << endl;
+        // 2. 檢查 weak
+        cout << "====================\nWeak counts\n====================\n";
+        bool isWeakProblem = false;
+        for (int target_index = 0; target_index < L; ++target_index) {
+            cout << "S -> " << target_index << endl;
+            auto weak_count_results = weak(L, target_index, chromosomes);
 
-    bool isWeakProblem = false;
-    for (int target_index = 0; target_index < L; target_index++) {
-        cout << "S -> " << target_index << endl;
+            bool isWeak = false;
+            for (int i = 2; i < (int)weak_count_results.size(); ++i) {
+                if (weak_count_results[i] > 0) {
+                    isWeak = true;
+                    isWeakProblem = true;
+                    break;
+                }
+            }
 
-        std::vector<int> weak_count_results = weak(L, target_index, chromosomes);
-
-        bool isWeak = false;
-
-        for (int i = 2; i < weak_count_results.size(); i++) {
-            if (weak_count_results[i] > 0) {
-                isWeak = true;
-                isWeakProblem = true;
-                break;
+            if (!isWeak) {
+                cout << "--- No weak ---\n";
+            } else {
+                cout << "--- Weak ---\n";
+                for (int i = 2; i < (int)weak_count_results.size(); ++i) {
+                    cout << "#order_" << i << ": " << weak_count_results[i] << endl;
+                }
+                cout << "-----------------\n\n";
             }
         }
 
-        if (!isWeak) {
-            cout << "--- No weak ---" << endl;
-        }else {
-            cout << "--- Weak ---" << endl;
-            for (int i = 2; i < weak_count_results.size(); i++) {
-                cout << "#order_" << i << ": " << weak_count_results[i] << endl;
-            }
-            cout << "-----------------" << endl;
-            cout << endl;
+        if (!isWeakProblem) {
+            cout << "##### No weak found! Stopping after run #" 
+                 << run_count << " #####\n\n";
+            found_no_weak = true;
+        } else {
+            cout << "##### Weak detected. Retrying... #####\n\n";
+            // found_no_weak = true;
         }
-
     }
 
-    if (isWeakProblem) {
-        cout << "##### Exist weak #####" << endl;
-    } else {
-        cout << "##### No weak #####" << endl;
-    }
-    
-
-    cout << endl;
-    cout << endl;
-
-    cout << "====================" << endl;
-    cout << "Epistasis counts" << endl;
-    cout << "====================" << endl;
-
-    for (int target_index = 0; target_index < L; target_index++) {
+    // 3. 找到「No weak」後，再做一次 epistasis 計算（或直接用最後一次的 chromosomes）
+    cout << "====================\nEpistasis counts\n====================\n";
+    for (int target_index = 0; target_index < L; ++target_index) {
         cout << "S -> " << target_index << endl;
-
-        std::vector<int> epi_count_results = epistasis(L, target_index, chromosomes);
-        cout << "--- Epistasis ---" << endl;
-        for (int i = 1; i < epi_count_results.size(); i++) {
+        auto epi_count_results = epistasis(L, target_index, chromosomes);
+        cout << "--- Epistasis ---\n";
+        for (int i = 1; i < (int)epi_count_results.size(); ++i) {
             cout << "#order_" << i << ": " << epi_count_results[i] << endl;
         }
-        cout << "-----------------" << endl;
-        cout << endl;
+        cout << "-----------------\n\n";
+    }
+
+    // 4. 最後把那組 chromosomes 依 fitness 排序並列印
+    sort(chromosomes.begin(), chromosomes.end(),
+         [](auto const& a, auto const& b) {
+             return a.second > b.second;
+         });
+
+    cout << "chromosomes & fitness\n";
+    for (auto const& chom : chromosomes) {
+        cout << chom.first << " " << chom.second << "\n";
     }
     cout << endl;
-    cout << endl;
 
-
-
-    // 排序根據 chom.second 的值由高到低
-    sort(chromosomes.begin(), chromosomes.end(), [](const auto& a, const auto& b) {
-        return a.second > b.second; // 由高到低排序
-    });
-
-    cout << "chromosomes & fitness" << endl;
-    for (const auto& chom : chromosomes) {
-        cout << chom.first << " " << chom.second << endl;
-    }
-    cout << endl;
     return 0;
 }
