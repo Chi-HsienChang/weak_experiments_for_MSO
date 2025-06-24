@@ -180,6 +180,21 @@ bool check_constrained_optima(int target_index, const vector<int>& combination, 
 
         if (!constrained_optima_original.first.empty() && !constrained_optima_flip.first.empty()){
 
+            if (combination.size() == 1 && constrained_optima_original.first.size() == 1 && constrained_optima_flip.first.size() == 1){
+                cout << "{";
+                for (const auto& elem : combination) {
+                    cout << elem << " ";
+                }
+                cout << "} -> "<< target_index << endl;   
+            }else if (combination.size() == 1 && (constrained_optima_original.first.size() != 1 || constrained_optima_flip.first.size() != 1)){
+                cout << "{";
+                for (const auto& elem : combination) {
+                    cout << elem << " ";
+                }
+                cout << "} ->>> "<< target_index << endl;
+            }
+
+
             // if (DEBUG)
             // {
             //     cout << "constrained_optima_original.first: ";

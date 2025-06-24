@@ -275,9 +275,122 @@ double calculate_fitness(const string& chromosome, const string& method) {
         weak_fiteness += calculate_segment_onemax_weak(segment_weak4, method); 
       
         return weak_fiteness;
+    }else if (method == "max3sat") {
+    int n = chromosome.size();
+    if (n < 2) {
+        cerr << "Error: max3sat_chainxor requires chromosome size >= 2\n";
+        exit(1);
     }
+
+    // 每個子句最多 3 個 literal，用 pair<idx, positive> 表示
+    vector<array<pair<int,bool>,3>> clauses;
+    // 1) 鎖定 x0 = true，唯一最佳解才能啟動整條鏈
+    clauses.push_back({ make_pair(0,true), make_pair(0,true), make_pair(0,true) });
+
+    // 2) 對每個相鄰 (i, i+1)，加入 XOR 約束：
+    //    (xi ∨ xi+1) ∧ (¬xi ∨ ¬xi+1)，並各自用重複 literal 填滿到 3 長度
+    for (int i = 0; i < n - 1; ++i) {
+        // (xi ∨ xi+1 ∨ xi+1)
+        clauses.push_back({ make_pair(i,  true),
+                            make_pair(i+1,true),
+                            make_pair(i+1,true) });
+        // (¬xi ∨ ¬xi+1 ∨ ¬xi+1)
+        clauses.push_back({ make_pair(i,  false),
+                            make_pair(i+1,false),
+                            make_pair(i+1,false) });
+    }
+
+    // 評估滿足子句數
+    int sat = 0;
+    for (auto& cl : clauses) {
+        bool clause_sat = false;
+        for (auto& lit : cl) {
+            bool val = (chromosome[ lit.first ] == '1');
+            if ((lit.second && val) || (!lit.second && !val)) {
+                clause_sat = true;
+                break;
+            }
+        }
+        if (clause_sat) ++sat;
+    }
+
+    return static_cast<double>(sat);
+    }else if (method == "max3sat_random") {
+
+        int n = chromosome.length();
+
+        // 只在第一次呼叫時計算並儲存子句集合
+        static bool initialized = false;
+        static vector<array<pair<int,bool>,3>> clauses;
+        if (!initialized) {
+            initialized = true;
+            // 1) 隨機產生目標解
+            random_device rd;
+            mt19937 gen(rd());
+            uniform_int_distribution<> coin(0,1);
+            vector<bool> target(n);
+            for (int i = 0; i < n; ++i)
+                target[i] = coin(gen) == 1;
+
+            // 2) unit‐clause 鎖定目標解，保證唯一最優
+            for (int i = 0; i < n; ++i) {
+                bool pos = target[i];
+                clauses.push_back({
+                    make_pair(i, pos),
+                    make_pair(i, pos),
+                    make_pair(i, pos)
+                });
+            }
+
+            // 3) 加入 m_random 條隨機 3-literal clause（此處取 4n 條，可自行調整）
+            int m_random = 4 * n;
+            uniform_int_distribution<> var_dist(0, n - 1);
+            for (int k = 0; k < m_random; ++k) {
+                int a, b, c;
+                do {
+                    a = var_dist(gen);
+                    b = var_dist(gen);
+                    c = var_dist(gen);
+                } while (a == b || a == c || b == c);
+
+                // 保證至少一個 literal 在目標解下為 true
+                int guarantee = coin(gen) * 3;  // 0,1,2 任一
+                array<pair<int,bool>,3> cl;
+                int idxs[3] = {a, b, c};
+                for (int t = 0; t < 3; ++t) {
+                    int v = idxs[t];
+                    bool sign;
+                    if (t == guarantee) {
+                        sign = target[v];
+                    } else {
+                        // 其它兩個隨機正負，但可讓目標解「不一定破壞」滿足
+                        sign = (coin(gen) == 1) ? target[v] : !target[v];
+                    }
+                    cl[t] = make_pair(v, sign);
+                }
+                clauses.push_back(cl);
+            }
+        }
+
+        // 4) 計算滿足子句數
+        int sat = 0;
+        for (auto& cl : clauses) {
+            bool clause_sat = false;
+            for (auto& lit : cl) {
+                bool val = (chromosome[lit.first] == '1');
+                if ((lit.second && val) || (!lit.second && !val)) {
+                    clause_sat = true;
+                    break;
+                }
+            }
+            if (clause_sat) ++sat;
+        }
+        return static_cast<double>(sat);  
+    }
+
     std::cerr << "Error: the problem does not exist!" << std::endl;
     exit(1);
     return 0.0;
 }
+
 

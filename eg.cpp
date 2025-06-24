@@ -324,7 +324,11 @@ int check_epistasis(int target_index, const vector<int>& combination, const vect
 
     if (condition_holds == combination.size())
         {
-            if (DEBUG){  
+            if (combination.size() == 1){
+
+                
+
+            }else{  
                 cout << "{";
                 for (const auto& elem : combination) {
                     cout << elem << " ";
