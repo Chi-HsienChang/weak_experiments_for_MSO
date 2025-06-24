@@ -39,16 +39,18 @@ int main(int argc, char* argv[]) {
     cout << "Weak counts" << endl;
     cout << "====================" << endl;
 
+    bool isWeakProblem = false;
     for (int target_index = 0; target_index < L; target_index++) {
         cout << "S -> " << target_index << endl;
 
         std::vector<int> weak_count_results = weak(L, target_index, chromosomes);
 
-        int isWeak = false;
+        bool isWeak = false;
 
         for (int i = 2; i < weak_count_results.size(); i++) {
             if (weak_count_results[i] > 0) {
                 isWeak = true;
+                isWeakProblem = true;
                 break;
             }
         }
@@ -65,6 +67,14 @@ int main(int argc, char* argv[]) {
         }
 
     }
+
+    if (isWeakProblem) {
+        cout << "##### Exist weak #####" << endl;
+    } else {
+        cout << "##### No weak #####" << endl;
+    }
+    
+
     cout << endl;
     cout << endl;
 
